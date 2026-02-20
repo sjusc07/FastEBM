@@ -50,9 +50,13 @@ Dependencies
 - [Scikit-learn](https://scikit-learn.org)
 - [statsmodels](https://github.com/statsmodels/statsmodels/)
 
+FastEBM Functions
+============
+xyz
+
 FastEBM Tutorial
 ===============  
-See the jupyter notebook (FastEBM_example.ipynb) in the tests folder for a tutorial on how to use FastEBM using simulated and real data.
+See the jupyter notebook (tests/FastEBM_example.ipynb) in the tests folder for a tutorial on how to use FastEBM using simulated and real data.
 
 Relevant Papers
 ============
