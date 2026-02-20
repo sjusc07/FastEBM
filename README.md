@@ -12,25 +12,31 @@ Installation
 ============
 ## Conda env + Clone repository
 
-1) Create a conda environment and activate it:
+1) Create a conda environment:
    ```
-   conda create --name fastebm_env python>=3.9
-   cona activate fastebm_env
+   conda create --name fastebm_env python=3.9
    ```
-   
-2) To use the environment in Jupyter notebook run the following commands:
+
+2) Activate your conda environment:
+   ```
+   conda activate fastebm_env
+   ```
+
+3) To use the environment in Jupyter notebook run the following commands:
    ```
    conda install -c anaconda ipykernel
    python -m ipykernel install --user --name=fastebm_env
    ```
 
-3) Clone this repo: [cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
+4) Clone/download this repo: [cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
 
-2) Navigate to the main FastEBM directory (where you see pyproject.toml, README.txt, LICENSE.txt, and all subfolders), then run:
+5) Navigate to the main FastEBM directory (where you see pyproject.toml, README.txt, LICENSE.txt, and all subfolders), then run:
 
        pip install .
 
     Alternatively, you can do `pip install -e .` where the `-e` flag allows you to make edits to the code without reinstalling.
+   
+6) You should now be able to run FastEBM_example.ipynb or create your own notebook using the fastebm_env environment.
 
 Dependencies
 ============
