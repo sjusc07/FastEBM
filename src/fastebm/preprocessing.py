@@ -87,13 +87,13 @@ def detect_correlated_features(df, minimum_correlation = 0.8):
         return best_clusters
 
 def merge_correlated_features(df, correlated_clusters):
-    corr_features = set(list(sum( list(correlated_clusters.keys()), ())))
+    corr_features = set(list(sum(correlated_clusters, ())))
     all_features = set(df.columns)
     # non_corr_features = (all_features - corr_features) - set(['stage2'])
     non_corr_features = (all_features - corr_features)
     # non_corr_features = 
     df_noncorr = df[list(non_corr_features)].copy(deep=True)
-    for i,fs in enumerate(list(correlated_clusters.keys())):
+    for i,fs in enumerate(correlated_clusters):
         pca = sklearn.decomposition.PCA(n_components=1)
         pca.fit(sklearn.preprocessing.scale(df[list(fs)].values))
         X_transformed = pca.transform(sklearn.preprocessing.scale(df[list(fs)].values))
