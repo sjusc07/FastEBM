@@ -1,7 +1,16 @@
 FastEBM
 ============
 
+> [*"Problem solving is often a matter of cooking up an appropriate Markov chain."*](https://math.uchicago.edu/~shmuel/Network-course-readings/Markov_chain_tricks.pdf)
+
+>
+
+> — Olle Häggström
+---
+
 FastEBM is an algorithm for discrete disease progression modeling. This repository is the Python implementation of FastEBM.
+
+Current package features include deterministic FastEBM event ordering, correlated-feature detection and PCA-based merging, vectorized single-breakpoint L2 changepoint detection, and first-passage sensitivity analysis for propagating Markov-chain variability through subject Disease Progression Scores (DPS).
 
 Acknowledgement
 ================
@@ -30,7 +39,7 @@ Installation
 
 4) Clone/download this repo: [cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
 
-5) Navigate to the main FastEBM directory (where you see pyproject.toml, README.txt, LICENSE.txt, and all subfolders), then run:
+5) Navigate to the main FastEBM directory (where you see pyproject.toml, README.md, LICENSE.txt, and all subfolders), then run:
 
        pip install .
 
@@ -66,6 +75,8 @@ my_fastebm = FastEBM(data = X, ordering_method = 'median_template', zFastEBM = T
 
 `anamoly_model` is used to determine which model to use for the anamoly detection algorithm. A list of models can be found on the ruptures website under *Cost functions* (https://centre-borelli.github.io/ruptures-docs/code-reference/)
 
+For the default `anamoly_model='l2'`, FastEBM uses a vectorized one-breakpoint sum-of-squared-errors implementation that matches the single-breakpoint L2 search grid used by `ruptures.Dynp`, while avoiding repeated per-feature `ruptures` calls. Other `anamoly_model` values continue to use the ruptures implementation.
+
 `return_dps` is a boolean variable. If set to `True` it returns the dynamic progression score (DPS) for each subject in the sorted data. DPS is useful for some post-processing (see the tutorial).
 
 `seed` sets the random seed for calculations.
@@ -82,21 +93,83 @@ fastebm_ordered_biomarkers, event_index_dict = my_fastebm.get_event_ordering()
 ```
 `get_event_ordering()` returns a list containing the ordered biomarkers (`fastebm_ordered_biomarkers`), and a dictionary (`event_index_dict`) where the keys are feature names and the values are the indices of abnormality as determined by the changepoint detection algorithm. The event-index dictionary can be useful to check where the abnormalities are happening (same index or far apart).
 
-FastEBM Beta Functions
+First-Passage Sensitivity Analysis
 ============
-FastEBM's package offers two preprocessing functions for detecting and merging correlated features. Having a high number of correlated features can negatively affect the performance of FastEBM.
+FastEBM provides a native first-passage sensitivity analysis for propagating Markov-chain variability through subject DPS and into event ordering. This is exposed through `first_passage_uncertainty`.
+
+```
+from fastebm import first_passage_uncertainty
+
+first_passage_result = first_passage_uncertainty(
+    data=X,
+    n_noise_samples=100,
+    ordering_method='median_template',
+    n_neighbors=1,
+    support_n_neighbors=None,
+    anamoly_model='l2',
+    min_segment_size=3,
+    dps_noise_scale=None,
+    normalize_subject_variance=True,
+    return_subject_precedence=False,
+    convergence_check_interval=None,
+    convergence_min_samples=None,
+    event_rank_convergence_tol=None,
+    convergence_patience=2,
+    seed=None,
+)
+```
+
+`X` should be formatted the same way as the deterministic FastEBM input: features in all columns except the last column, and stage labels in the last column. Control subjects should have `stage==1`.
+
+The result is a `FastEBMFirstPassageUncertaintyResult` object with the following commonly used outputs:
+
+- `event_rank_samples`: sampled event ranks for each feature.
+- `event_position_samples`: sampled changepoint/DPS positions for each feature.
+- `event_summary`: feature-level rank and position summaries, including means, medians, standard deviations, and 95% intervals.
+- `subject_rank_samples`: sampled subject ranks after DPS perturbation.
+- `subject_rank_summary`: subject-level rank summaries.
+- `subject_variance`: first-passage variance and scaled DPS-noise variance for each subject.
+- `mean_first_passage_matrix` and `first_passage_variance_matrix`: Kemeny-Snell first-passage moment matrices.
+- `sample_metadata`: sampling and convergence metadata.
+- `convergence_history`: convergence diagnostics when adaptive stopping is enabled.
+
+The first-passage procedure estimates conditional sensitivity of the fitted event ordering to Markovian perturbations of DPS
+
+Adaptive stopping can be enabled by setting one or both convergence tolerances:
+
+```
+first_passage_result = first_passage_uncertainty(
+    X,
+    n_noise_samples=1000,
+    convergence_check_interval=25,
+    convergence_min_samples=100,
+    event_rank_convergence_tol=2.0,
+    convergence_patience=1,
+    seed=11,
+)
+```
+
+When adaptive stopping is enabled, `n_noise_samples` is treated as the maximum number of Monte Carlo samples. The sampler stops early when the requested convergence criterion remains stable for `convergence_patience` consecutive checks.
+
+Correlated Feature Functions
+============
+FastEBM offers two preprocessing functions for detecting and merging correlated features. Having a high number of correlated features can negatively affect the performance of FastEBM.
 
 1) Detecting correlated features
 ```
+from fastebm import detect_correlated_features
+
 best_corr_clusters = detect_correlated_features(df = df.iloc[:,:-1])
 ```
 `detect_correlated_features` takes in the dataframe (without the 'stage' column) as input and returns a dictionary (tuple -> float64) where the keys are correlated feature clusters and the value is the average correlation value. 
 
 2) Merging correlated features
 ```
-df_decorr = merge_correlated_features(df = df.iloc[:,:-1], correlated_clusters = list(best_corr_clusters.keys()))
+from fastebm import merge_correlated_features
+
+df_decorr = merge_correlated_features(df = df.iloc[:,:-1], correlated_clusters = best_corr_clusters)
 ```
-`merge_correlated_features` takes in the data dataframe (without stage column) and a list of tuples, where each tuple contains the correlated feature names. Users can use the output of `detect_correlated_features` or define their own set of features. Grouped features are mapped to the first principal component using PCA algorithm.
+`merge_correlated_features` takes in the data dataframe (without stage column) and a dictionary of correlated clusters, such as the output of `detect_correlated_features`. Users can also provide their own cluster dictionary. Grouped features are mapped to the first principal component using PCA.
 
 FastEBM Tutorial
 ===============  
@@ -108,7 +181,9 @@ Methods:
 - The FastEBM algorithm: [Javid et al. 2025](https://doi.org/10.1007/978-3-032-07904-6_19) 
 - Diffusion Maps: [Coifman, R.R., Lafon, S. 2006](https://doi.org/10.1016/j.acha.2006.04.006)
 - Diffusion Pseudotime [Haghverdi et al. 2016](https://doi.org/10.1038/nmeth.3971)
+- Offline changepoint detection: [Truong, Oudre, Vayatis 2020](https://doi.org/10.1016/j.sigpro.2019.107299)
+- First-passage moments for finite Markov chains: Kemeny and Snell, *Finite Markov Chains*, 1960
 
 Funding
 ================
-xyz
+This work was supported by grant R01AG087513 from the National Institute on Aging at the National Institutes of Health, and by grant AARG-23-1149996 from US Alzheimer’s Association.
