@@ -5,7 +5,7 @@ FastEBM
 
 >
 
-> — Olle Häggström
+- Olle Häggström
 ---
 
 FastEBM is an algorithm for discrete disease progression modeling. This repository is the Python implementation of FastEBM.
