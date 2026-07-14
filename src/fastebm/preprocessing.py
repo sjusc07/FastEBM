@@ -1,14 +1,22 @@
 import numpy as np
-import scipy
 import pandas as pd
-import sklearn
+from scipy.cluster.hierarchy import fcluster, ward, linkage
+from scipy.spatial.distance import squareform
+# from scipy.stats import spearmanr
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import scale
 
 
 
 def _average_pearson_correlation(features: pd.DataFrame) -> float:
     corr_matrix = features.corr().values
+    if corr_matrix.shape[0] < 2:
+        return np.nan
     upper_triangle_indices = np.triu_indices_from(corr_matrix, k=1)
     corr_values = corr_matrix[upper_triangle_indices]
+    if corr_values.size == 0:
+        return np.nan
+    corr_values = np.clip(corr_values, -1 + np.finfo(float).eps, 1 - np.finfo(float).eps)
     z_values = np.arctanh(corr_values)
     avg_z = np.mean(z_values)
     avg_corr = np.tanh(avg_z)
@@ -17,19 +25,28 @@ def _average_pearson_correlation(features: pd.DataFrame) -> float:
 
 
 def detect_correlated_features(df, minimum_correlation = 0.8):
-    corr = scipy.stats.spearmanr(df).correlation
+    if df.shape[1] < 2:
+        print("Feature Clusters:")
+        print("At least two features are required to detect correlations.")
+        return {}
+
+    # corr = spearmanr(df).correlation
+    corr = (df).corr().values
+    if np.isscalar(corr):
+        corr = np.array([[1.0, corr], [corr, 1.0]], dtype=float)
 
     # Ensure the correlation matrix is symmetric
     corr = (corr + corr.T) / 2
+    corr = np.nan_to_num(corr, nan=0.0)
     np.fill_diagonal(corr, 1)
 
     # We convert the correlation matrix to a distance matrix before performing
     # hierarchical clustering using Ward's linkage.
     distance_matrix = 1 - np.abs(corr)
-    dist_linkage = scipy.cluster.hierarchy.ward(scipy.spatial.distance.squareform(distance_matrix))
+    # dist_linkage = ward(squareform(distance_matrix))
+    dist_linkage = linkage(squareform(distance_matrix), method="average")
 
     thresholds = np.linspace(10.0, 0.05, 100)
-    minimum_correlation = 0.8          ## the minimum value to consider features to be a correlated cluster
 
     best_threshold = None
     best_clusters = {}
@@ -38,7 +55,7 @@ def detect_correlated_features(df, minimum_correlation = 0.8):
     max_total_features = -1
 
     for t in thresholds:
-        cluster_labels = scipy.cluster.hierarchy.fcluster(dist_linkage, t, criterion="distance")
+        cluster_labels = fcluster(dist_linkage, t, criterion="distance")
         df_tr = df.T.copy()
         # df_tr = X_stage.transpose().iloc[:,:-1].transpose().copy()
         df_tr['cluster'] = cluster_labels
@@ -51,7 +68,7 @@ def detect_correlated_features(df, minimum_correlation = 0.8):
             if len(columns) < 2:
                 continue  # skip singleton features
             avg_corr = _average_pearson_correlation(df[columns])
-            if avg_corr >= minimum_correlation:
+            if np.isfinite(avg_corr) and avg_corr >= minimum_correlation:
                 sorted_cluster = tuple(sorted(columns))
                 temp_clusters[sorted_cluster] = avg_corr
             else:
@@ -80,23 +97,23 @@ def detect_correlated_features(df, minimum_correlation = 0.8):
     print("Feature Clusters:")
     if len(best_clusters.items()) == 0:
         print("No feature clusters were found!")
-        return None
+        return {}
     else:
         for features, corr in best_clusters.items():
             print(f"{features}: avg corr = {corr:.2f}")
         return best_clusters
 
 def merge_correlated_features(df, correlated_clusters):
-    corr_features = set(list(sum(correlated_clusters, ())))
-    all_features = set(df.columns)
-    # non_corr_features = (all_features - corr_features) - set(['stage2'])
-    non_corr_features = (all_features - corr_features)
-    # non_corr_features = 
-    df_noncorr = df[list(non_corr_features)].copy(deep=True)
+    if not correlated_clusters:
+        return df.copy(deep=True)
+
+    corr_features = {feature for cluster in correlated_clusters for feature in cluster}
+    non_corr_features = [feature for feature in df.columns if feature not in corr_features]
+    df_noncorr = df[non_corr_features].copy(deep=True)
     for i,fs in enumerate(correlated_clusters):
-        pca = sklearn.decomposition.PCA(n_components=1)
-        pca.fit(sklearn.preprocessing.scale(df[list(fs)].values))
-        X_transformed = pca.transform(sklearn.preprocessing.scale(df[list(fs)].values))
-        df_noncorr[f'PC_{i}'] = X_transformed
+        pca = PCA(n_components=1)
+        standardized_values = scale(df[list(fs)].values)
+        X_transformed = pca.fit_transform(standardized_values)
+        df_noncorr[f'PC_{i}'] = X_transformed.ravel()
     # df_noncorr['stage'] = df['stage2']
     return df_noncorr

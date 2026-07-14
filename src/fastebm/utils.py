@@ -1,35 +1,59 @@
 import ruptures as rpt
+import numpy as np
 
-def _ordered_event_dict(df, anamoly_model='l2', feature_names=None):
+from ._changepoint import l2_one_breakpoint_indices
+def changepoint_detect_and_order(df, anamoly_model='l2'):
     event_order_dict = {}
-    if feature_names is None:
-        feature_names = list(df.columns)
+    if anamoly_model == 'l2':
+        if df.shape[1] == 0:
+            return []
 
-    for col in feature_names:
-        series = df[col]
-        valid_mask = series.notna().to_numpy()
-        valid_positions = valid_mask.nonzero()[0]
-        values = series.to_numpy()[valid_mask]
+        values = df.to_numpy(dtype=float)
+        if not np.isnan(values).any():
+            breakpoints = l2_one_breakpoint_indices(values, min_size=2)
+            for col, breakpoint in zip(df.columns, breakpoints):
+                if breakpoint < 0:
+                    event_order_dict[col] = float("inf")
+                    continue
+                breakpoint = min(max(int(breakpoint), 0), len(df) - 1)
+                event_order_dict[col] = df.index[breakpoint]
 
-        if len(values) < 2:
-            raise ValueError(
-                f"Feature '{col}' has fewer than 2 non-missing values after sorting."
-            )
+            return sorted(event_order_dict, key=event_order_dict.get)
 
-        anamoly_alg = rpt.Dynp(model=anamoly_model)
+        for col in df.columns:
+            s = df[col].dropna()
+
+            if len(s) < 2:
+                event_order_dict[col] = float("inf")
+                continue
+
+            values = s.to_numpy(dtype=float)
+            breakpoint = l2_one_breakpoint_indices(values, min_size=2)[0]
+            if breakpoint < 0:
+                event_order_dict[col] = float("inf")
+                continue
+
+            breakpoint = min(max(int(breakpoint), 0), len(s) - 1)
+            event_order_dict[col] = s.index[breakpoint]
+
+        return sorted(event_order_dict, key=event_order_dict.get)
+
+    anamoly_alg = rpt.Dynp(model=anamoly_model)
+
+    for col in df.columns:
+        s = df[col].dropna()
+
+        if len(s) < 2:
+            event_order_dict[col] = float("inf")
+            continue
+
+        values = s.to_numpy(copy=False)
         anamoly_alg.fit(values)
+        cp = anamoly_alg.predict(n_bkps=1)[0]
 
-        try:
-            reduced_breakpoint = anamoly_alg.predict(n_bkps=1)[0]
-            event_order_dict[col] = int(valid_positions[reduced_breakpoint])
-        except Exception as exc:
-            raise ValueError(
-                f"Could not detect a changepoint for feature '{col}' with {len(values)} observations."
-            ) from exc
+        # Map the breakpoint back to the original index scale
+        cp = min(cp, len(s) - 1)
+        event_order_dict[col] = s.index[cp]
 
-    return dict(sorted(event_order_dict.items(), key=lambda item: item[1]))
-
-
-def changepoint_detect_and_order(df, anamoly_model = 'l2'):
-    event_ordering = list(_ordered_event_dict(df, anamoly_model).keys())
+    event_ordering = sorted(event_order_dict, key=event_order_dict.get)
     return event_ordering
