@@ -153,7 +153,7 @@ When adaptive stopping is enabled, `n_noise_samples` is treated as the maximum n
 
 Correlated Feature Functions
 ============
-FastEBM offers two preprocessing functions for detecting and merging correlated features. Having a high number of correlated features can negatively affect the performance of FastEBM.
+FastEBM offers preprocessing functions for detecting and merging correlated features.
 
 1) Detecting correlated features
 ```
