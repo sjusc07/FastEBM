@@ -5,7 +5,7 @@ FastEBM
 
 >
 
-- Olle Häggström
+> Olle Häggström
 ---
 
 FastEBM is an algorithm for discrete disease progression modeling. This repository is the Python implementation of FastEBM.
@@ -71,7 +71,7 @@ my_fastebm = FastEBM(data = X, ordering_method = 'median_template', zFastEBM = T
 
 `zFastEBM` is a boolean parameter. If set to `True`, z-score version of FastEBM will run. 
 
-`n_neighbors` determines the number of neighbors to be used in the construction of the similarity matrix (equation 2 of the FastEBM paper). It is recommended that number of neighbors to be smallest number while the resulting similarity matrix remains connected and the condition number of matrix is 'reasonable` in order to get the fine-grained structure of the manifold. 
+`n_neighbors` determines the number of neighbors to be used in the construction of the similarity matrix. It is recommended that number of neighbors to be smallest number while the resulting similarity matrix remains connected and the condition number of matrix is 'reasonable` in order to get the fine-grained structure of the manifold. 
 
 `anamoly_model` is used to determine which model to use for the anamoly detection algorithm. A list of models can be found on the ruptures website under *Cost functions* (https://centre-borelli.github.io/ruptures-docs/code-reference/)
 
