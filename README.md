@@ -67,15 +67,13 @@ my_fastebm = FastEBM(data = X, ordering_method = 'median_template', zFastEBM = T
 ```
 `X` is your z-scored data with the last column being the stage value. Control subjects should have `stage==1`. The stage value for non-controls are redundant and is not used in the FastEBM calculations.
 
-`Ordering method` determines the reference subject. `median_template` uses the median of controls as the reference subject. `mean_template` is another option, which calculates the mean of controls. 
+`ordering_method` determines the reference subject. `median_template` uses the median of controls as the reference subject. `mean_template` is another option, which calculates the mean of controls. 
 
 `zFastEBM` is a boolean parameter. If set to `True`, z-score version of FastEBM will run. 
 
 `n_neighbors` determines the number of neighbors to be used in the construction of the similarity matrix. It is recommended that number of neighbors to be smallest number while the resulting similarity matrix remains connected and the condition number of matrix is 'reasonable` in order to get the fine-grained structure of the manifold. 
 
-`anamoly_model` is used to determine which model to use for the anamoly detection algorithm. A list of models can be found on the ruptures website under *Cost functions* (https://centre-borelli.github.io/ruptures-docs/code-reference/)
-
-For the default `anamoly_model='l2'`, FastEBM uses a vectorized one-breakpoint sum-of-squared-errors implementation that matches the single-breakpoint L2 search grid used by `ruptures.Dynp`, while avoiding repeated per-feature `ruptures` calls. Other `anamoly_model` values continue to use the ruptures implementation.
+`anamoly_model` is used to determine which model to use for the anamoly detection algorithm. For the default `anamoly_model='l2'`, FastEBM uses a vectorized one-breakpoint sum-of-squared-errors implementation that matches the single-breakpoint L2 search grid used by `ruptures.Dynp`, while avoiding repeated per-feature `ruptures` calls. Other `anamoly_model` values continue to use the ruptures implementation (https://centre-borelli.github.io/ruptures-docs/code-reference/).
 
 `return_dps` is a boolean variable. If set to `True` it returns the dynamic progression score (DPS) for each subject in the sorted data. DPS is useful for some post-processing (see the tutorial).
 
@@ -105,12 +103,10 @@ first_passage_result = first_passage_uncertainty(
     n_noise_samples=100,
     ordering_method='median_template',
     n_neighbors=1,
-    support_n_neighbors=None,
     anamoly_model='l2',
-    min_segment_size=3,
+    min_segment_size=2,
     dps_noise_scale=None,
     normalize_subject_variance=True,
-    return_subject_precedence=False,
     convergence_check_interval=None,
     convergence_min_samples=None,
     event_rank_convergence_tol=None,
@@ -120,6 +116,26 @@ first_passage_result = first_passage_uncertainty(
 ```
 
 `X` should be formatted the same way as the deterministic FastEBM input: features in all columns except the last column, and stage labels in the last column. Control subjects should have `stage==1`.
+
+`n_noise_samples`: Number of Monte Carlo DPS perturbation samples to draw. If adaptive convergence is not enabled, exactly this many samples are generated. If convergence checking is enabled, this value is treated as the maximum number of samples.
+
+`ordering_method` determines the reference subject. `median_template` uses the median of controls as the reference subject. `mean_template` is another option, which calculates the mean of controls. 
+
+`n_neighbors` determines the number of neighbors to be used in the construction of the similarity matrix.
+
+`min_segment_size`: Minimum number of subjects required on each side of a changepoint.
+
+`dps_noise_scale`: Optional multiplicative scale for the DPS perturbation noise. If `None`, FastEBM automatically estimates a scale from the median local spacing of the normalized DPS values.
+
+`normalize_subject_variance`: Controls how first-passage variances are converted to DPS-scale noise variances. If `True`, each subject’s first-passage variance is divided by the median positive first-passage variance across subjects and then scaled by `dps_noise_scale`. If `False`, the variance is instead converted to the normalized DPS scale using the squared raw DPS range.
+
+`convergence_check_interval`: Number of Monte Carlo samples between adaptive convergence checks. If `None`, convergence is not checked unless a convergence tolerance is supplied. When convergence is enabled and this value is `None`, FastEBM chooses a default checkpoint interval.
+
+`convergence_min_samples`: Minimum number of Monte Carlo samples that must be generated before adaptive stopping is allowed. This prevents early stopping before enough samples have accumulated to estimate stable event-rank summaries.
+
+`event_rank_convergence_tol`: Optional tolerance for adaptive convergence based on mean biomarker event ranks. At each checkpoint, FastEBM compares the current cumulative mean event rank for each biomarker with the previous checkpoint. Sampling can stop once the maximum absolute change across biomarkers is below this tolerance for the required number of consecutive checks. If `None`, event-rank convergence is not used.
+
+`convergence_patience`: Number of consecutive convergence checks that must satisfy the specified tolerance before Monte Carlo sampling stops early. Larger values make early stopping more conservative.
 
 The result is a `FastEBMFirstPassageUncertaintyResult` object with the following commonly used outputs:
 
@@ -132,24 +148,6 @@ The result is a `FastEBMFirstPassageUncertaintyResult` object with the following
 - `mean_first_passage_matrix` and `first_passage_variance_matrix`: Kemeny-Snell first-passage moment matrices.
 - `sample_metadata`: sampling and convergence metadata.
 - `convergence_history`: convergence diagnostics when adaptive stopping is enabled.
-
-The first-passage procedure estimates conditional sensitivity of the fitted event ordering to Markovian perturbations of DPS
-
-Adaptive stopping can be enabled by setting one or both convergence tolerances:
-
-```
-first_passage_result = first_passage_uncertainty(
-    X,
-    n_noise_samples=1000,
-    convergence_check_interval=25,
-    convergence_min_samples=100,
-    event_rank_convergence_tol=2.0,
-    convergence_patience=1,
-    seed=11,
-)
-```
-
-When adaptive stopping is enabled, `n_noise_samples` is treated as the maximum number of Monte Carlo samples. The sampler stops early when the requested convergence criterion remains stable for `convergence_patience` consecutive checks.
 
 Correlated Feature Functions
 ============
