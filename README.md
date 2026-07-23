@@ -176,7 +176,7 @@ See the jupyter notebook (tests/FastEBM_example.ipynb) in the tests folder for a
 Relevant Papers
 ============
 Methods:
-- The FastEBM algorithm: [Javid et al. 2025](https://doi.org/10.64898/2026.07.18.739221) 
+- The FastEBM algorithm: [Javid et al. 2026](https://doi.org/10.64898/2026.07.18.739221) 
 - Diffusion Maps: [Coifman, R.R., Lafon, S. 2006](https://doi.org/10.1016/j.acha.2006.04.006)
 - Diffusion Pseudotime [Haghverdi et al. 2016](https://doi.org/10.1038/nmeth.3971)
 - Offline changepoint detection: [Truong, Oudre, Vayatis 2020](https://doi.org/10.1016/j.sigpro.2019.107299)
