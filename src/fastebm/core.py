@@ -140,12 +140,12 @@ class FastEBM:
         # ordering subjects across pseudotime axis
         if self.ordering_method == 'mean_template':
             N_df = pd.DataFrame(N)      # can be done with numpy probably -- to be optimized
-            N_df['stage'] = self.stage
+            N_df['stage'] = self.stage.to_numpy()
             centroid = (N_df[N_df.stage == 1].mean())[:-1].values   # assumption is that the reference group is labeled 1 and everyone else is 2
 
         elif self.ordering_method == 'median_template':
             N_df = pd.DataFrame(N)
-            N_df['stage'] = self.stage
+            N_df['stage'] = self.stage.to_numpy()
             centroid = (N_df[N_df.stage == 1].median())[:-1].values
 
         DPS = np.sqrt(np.sum((N - centroid) ** 2, axis=1))
